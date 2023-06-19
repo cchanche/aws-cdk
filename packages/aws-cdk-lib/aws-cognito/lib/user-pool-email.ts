@@ -1,6 +1,6 @@
-import { Stack, Token } from '../../core';
 import { Construct } from 'constructs';
 import { toASCII as punycodeEncode } from 'punycode/';
+import { Stack, Token } from '../../core';
 
 /**
  * Configuration for Cognito sending emails via Amazon SES
@@ -27,7 +27,7 @@ export interface UserPoolSESOptions {
   readonly fromName?: string;
 
   /**
-   * The destination to which the receiver of the email should reploy to.
+   * The destination to which the receiver of the email should reply to.
    *
    * @default - same as the fromEmail
    */
@@ -127,7 +127,6 @@ export abstract class UserPoolEmail {
   public static withSES(options: UserPoolSESOptions): UserPoolEmail {
     return new SESEmail(options);
   }
-
 
   /**
    * Returns the email configuration for a Cognito UserPool

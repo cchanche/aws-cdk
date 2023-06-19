@@ -1,7 +1,7 @@
+import { Construct } from 'constructs';
 import * as cxschema from '../../cloud-assembly-schema';
 import { ContextProvider, GetContextValueOptions, GetContextValueResult, Lazy, Stack } from '../../core';
 import * as cxapi from '../../cx-api';
-import { Construct } from 'constructs';
 import { GenericLinuxImage, Instance, InstanceType, SubnetType, Vpc } from '../lib';
 
 describe('vpc from lookup', () => {
@@ -17,7 +17,6 @@ describe('vpc from lookup', () => {
 
       }).toThrow('All arguments to Vpc.fromLookup() must be concrete');
 
-
     });
 
     test('selecting subnets by name from a looked-up VPC does not throw', () => {
@@ -31,7 +30,6 @@ describe('vpc from lookup', () => {
       vpc.selectSubnets({ subnetName: 'Bleep' });
 
       // THEN: no exception
-
 
     });
 
@@ -187,7 +185,6 @@ describe('vpc from lookup', () => {
       // THEN
       expect(subnets.subnets.length).toEqual(2);
 
-
     });
 
     test('don\'t crash when using subnetgroup name in lookup VPC', () => {
@@ -206,7 +203,6 @@ describe('vpc from lookup', () => {
       });
 
       // THEN -- no exception occurred
-
 
     });
     test('subnets in imported VPC has all expected attributes', () => {
@@ -245,7 +241,6 @@ describe('vpc from lookup', () => {
       expect(subnet.subnetId).toEqual('pub-sub-in-us-east-1a');
       expect(subnet.routeTable.routeTableId).toEqual('rt-123');
       expect(subnet.ipv4CidrBlock).toEqual('10.100.0.0/24');
-
 
       restoreContextProvider(previous);
 
@@ -287,17 +282,111 @@ describe('vpc from lookup', () => {
       expect(vpc.env.region).toEqual('region-1234');
       restoreContextProvider(previous);
     });
+
+    test('passes owner account id to LookedUpVpc correctly', () => {
+      const previous = mockVpcContextProviderWith({
+        vpcId: 'vpc-1234',
+        subnetGroups: [],
+        region: 'region-1234',
+        ownerAccountId: '123456789012',
+      });
+
+      const stack = new Stack();
+      const vpc = Vpc.fromLookup(stack, 'Vpc', {
+        vpcId: 'vpc-1234',
+      });
+      expect(vpc.env.account).toEqual('123456789012');
+      restoreContextProvider(previous);
+    });
+
+    test('passes owner account id to context query correctly', () => {
+      const previous = mockVpcContextProviderWith({
+        vpcId: 'vpc-1234',
+        subnetGroups: [],
+        region: 'region-1234',
+        ownerAccountId: '123456789012',
+      }, options => {
+        expect(options.filter['owner-id']).toEqual('123456789012');
+      });
+
+      const stack = new Stack();
+      const vpc = Vpc.fromLookup(stack, 'Vpc', {
+        vpcId: 'vpc-1234',
+        ownerAccountId: '123456789012',
+      });
+      expect(vpc.env.account).toEqual('123456789012');
+      restoreContextProvider(previous);
+    });
+
+    test('a looked up VPC in a different region shared from an account has correct VPC', () => {
+      const previous = mockVpcContextProviderWith({
+        vpcId: 'vpc-1234',
+        subnetGroups: [],
+        region: 'region-1234',
+        ownerAccountId: '123456789012',
+      });
+      const stack = new Stack();
+      const vpc = Vpc.fromLookup(stack, 'Vpc', {
+        vpcId: 'vpc-1234',
+      });
+      expect(stack.resolve(vpc.vpcArn)).toEqual({
+        'Fn::Join': [
+          '',
+          [
+            'arn:',
+            {
+              Ref: 'AWS::Partition',
+            },
+            ':ec2:region-1234:123456789012:vpc/vpc-1234',
+          ],
+        ],
+      });
+      restoreContextProvider(previous);
+    });
+
+    test('a looked up VPC falls back to the parent stack\'s account and region', () => {
+      const previous = mockVpcContextProviderWith({
+        vpcId: 'vpc-1234',
+        subnetGroups: [],
+      });
+      const stack = new Stack();
+      const vpc = Vpc.fromLookup(stack, 'Vpc', {
+        vpcId: 'vpc-1234',
+      });
+      expect(stack.resolve(vpc.vpcArn)).toEqual({
+        'Fn::Join': [
+          '',
+          [
+            'arn:',
+            {
+              Ref: 'AWS::Partition',
+            },
+            ':ec2:',
+            {
+              Ref: 'AWS::Region',
+            },
+            ':',
+            {
+              Ref: 'AWS::AccountId',
+            },
+            ':vpc/vpc-1234',
+          ],
+        ],
+      });
+      restoreContextProvider(previous);
+    });
   });
 });
 
-interface MockVcpContextResponse {
+interface MockVpcContextResponse {
   readonly vpcId: string;
   readonly subnetGroups: cxapi.VpcSubnetGroup[];
+  readonly ownerAccountId?: string;
   readonly region?: string;
 }
 
 function mockVpcContextProviderWith(
-  response: MockVcpContextResponse,
+  response: MockVpcContextResponse,
   paramValidator?: (options: cxschema.VpcContextQuery) => void) {
   const previous = ContextProvider.getValue;
   ContextProvider.getValue = (_scope: Construct, options: GetContextValueOptions) => {

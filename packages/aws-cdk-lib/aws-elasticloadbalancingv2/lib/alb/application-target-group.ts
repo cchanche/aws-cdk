@@ -1,9 +1,9 @@
-import * as cloudwatch from '../../../aws-cloudwatch';
-import * as ec2 from '../../../aws-ec2';
-import { Aws, Annotations, Duration, Token } from '../../../core';
 import { IConstruct, Construct } from 'constructs';
 import { IApplicationListener } from './application-listener';
 import { HttpCodeTarget } from './application-load-balancer';
+import * as cloudwatch from '../../../aws-cloudwatch';
+import * as ec2 from '../../../aws-ec2';
+import { Aws, Annotations, Duration, Token } from '../../../core';
 import { ApplicationELBMetrics } from '../elasticloadbalancingv2-canned-metrics.generated';
 import {
   BaseTargetGroupProps, ITargetGroup, loadBalancerNameFromListenerArn, LoadBalancerTargetProps,
@@ -18,9 +18,11 @@ import { determineProtocolAndPort, parseLoadBalancerFullName, parseTargetGroupFu
  */
 export interface ApplicationTargetGroupProps extends BaseTargetGroupProps {
   /**
-   * The protocol to use
+   * The protocol used for communication with the target.
    *
-   * @default - Determined from port if known, optional for Lambda targets.
+   * This is not applicable for Lambda targets.
+   *
+   * @default - Determined from port if known
    */
   readonly protocol?: ApplicationProtocol;
 
@@ -32,9 +34,11 @@ export interface ApplicationTargetGroupProps extends BaseTargetGroupProps {
   readonly protocolVersion?: ApplicationProtocolVersion;
 
   /**
-   * The port on which the listener listens for requests.
+   * The port on which the target receives traffic.
    *
-   * @default - Determined from protocol if known, optional for Lambda targets.
+   * This is not applicable for Lambda targets.
+   *
+   * @default - Determined from protocol if known
    */
   readonly port?: number;
 
@@ -103,7 +107,6 @@ export interface IApplicationTargetGroupMetrics {
    * @default Average over 5 minutes
    */
   custom(metricName: string, props?: cloudwatch.MetricOptions): cloudwatch.Metric;
-
 
   /**
    * The number of IPv6 requests received by the target group
@@ -177,7 +180,6 @@ export interface IApplicationTargetGroupMetrics {
   targetTLSNegotiationErrorCount(props?: cloudwatch.MetricOptions): cloudwatch.Metric;
 }
 
-
 /**
  * The metrics for a Application Load Balancer.
  */
@@ -203,7 +205,6 @@ class ApplicationTargetGroupMetrics implements IApplicationTargetGroupMetrics {
       ...props,
     }).attachTo(this.scope);
   }
-
 
   public ipv6RequestCount(props?: cloudwatch.MetricOptions) {
     return this.cannedMetric(ApplicationELBMetrics.iPv6RequestCountSum, props);
@@ -515,7 +516,7 @@ export class ApplicationTargetGroup extends TargetGroupBase implements IApplicat
    * The only valid statistic is Sum. Note that this represents the average not the sum.
    *
    * @default Sum over 5 minutes
-   * @deprecated Use ``ApplicationTargetGroup.metrics.ipv6RequestCount`` instead
+   * @deprecated Use `ApplicationTargetGroup.metrics.requestCountPerTarget` instead
    */
   public metricRequestCountPerTarget(props?: cloudwatch.MetricOptions) {
     return this.metrics.requestCountPerTarget(props);

@@ -1,6 +1,6 @@
+import { testFixture } from './util';
 import { Template } from '../../assertions';
 import { Duration } from '../../core';
-import { testFixture } from './util';
 import * as ga from '../lib';
 
 test('create accelerator', () => {
@@ -189,7 +189,6 @@ test('addEndpoint', () => {
     ],
   });
 
-
   listener.addEndpointGroup('Group', {
     endpoints: [
       new ga.RawEndpoint({
@@ -210,4 +209,33 @@ test('addEndpoint', () => {
       },
     ],
   });
+});
+
+test('create accelerator with uniqueResourceName if acceleratorName is not specified', () => {
+  // GIVEN
+  const { stack } = testFixture();
+
+  // WHEN
+  new ga.Accelerator(stack, 'Accelerator');
+
+  // THEN
+  Template.fromStack(stack).hasResourceProperties('AWS::GlobalAccelerator::Accelerator', {
+    Enabled: true,
+    Name: 'StackAccelerator472129D8',
+  });
+});
+
+test('should validate acceleratorName minimum and maximum length', () => {
+  const { stack } = testFixture();
+
+  expect(() => {
+    new ga.Accelerator(stack, 'AcceleratorShort', {
+      acceleratorName: '',
+    });
+  }).toThrowError(/must have length between 1 and 64/);
+  expect(() => {
+    new ga.Accelerator(stack, 'AcceleratorLong', {
+      acceleratorName: 'a'.repeat(100),
+    });
+  }).toThrowError(/must have length between 1 and 64/);
 });

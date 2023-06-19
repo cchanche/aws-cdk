@@ -1,7 +1,7 @@
-import * as cdk from '../../core';
 import { Construct } from 'constructs';
 import * as ga from './globalaccelerator.generated';
 import { Listener, ListenerOptions } from './listener';
+import * as cdk from '../../core';
 
 /**
  * The interface of the Accelerator
@@ -85,9 +85,13 @@ export class Accelerator extends cdk.Resource implements IAccelerator {
   constructor(scope: Construct, id: string, props: AcceleratorProps = {}) {
     super(scope, id);
 
+    this.validateAcceleratorName(props.acceleratorName);
+    const name = props.acceleratorName ?? cdk.Names.uniqueResourceName(this, {
+      maxLength: 64,
+    });
     const resource = new ga.CfnAccelerator(this, 'Resource', {
       enabled: props.enabled ?? true,
-      name: props.acceleratorName ?? cdk.Names.uniqueId(this),
+      name,
     });
 
     this.acceleratorArn = resource.attrAcceleratorArn;
@@ -102,5 +106,11 @@ export class Accelerator extends cdk.Resource implements IAccelerator {
       accelerator: this,
       ...options,
     });
+  }
+
+  private validateAcceleratorName(name?: string) {
+    if (!cdk.Token.isUnresolved(name) && name !== undefined && (name.length < 1 || name.length > 64)) {
+      throw new Error(`Invalid acceleratorName value ${name}, must have length between 1 and 64, got: ${name.length}`);
+    }
   }
 }
